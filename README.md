@@ -1,45 +1,60 @@
-# IPO Validation Pipeline
+# IPO Validation System
 
-A lightweight Python-based data validation tool that compares actual usage data from Epicor ERP against forecasted usage sent to IP&O (Inventory Planning & Optimization) software. Identifies data integrity issues, forecast variances, and critical discrepancies.
+A comprehensive Flask-based web application for validating data integrity between Epicor ERP usage data and IP&O (Inventory Planning & Optimization) forecast data. This system identifies discrepancies, categorizes variances, and provides interactive visualizations for data quality analysis.
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Data Sources](#data-sources)
+- [Pipeline Architecture](#pipeline-architecture)
+- [Webapp Features](#webapp-features)
+- [Configuration](#configuration)
+- [Deployment](#deployment)
+- [Troubleshooting](#troubleshooting)
+
+---
 
 ## 🎯 Overview
 
-This pipeline replaces a complex 481-line SQL view with a clean, modular Python architecture that:
-- Queries raw data from `PartUsage` and `IPOValidation` tables
-- Normalizes and transforms both datasets
-- Performs full outer join comparison
-- Categorizes variances by severity
-- Exports results for analysis in Excel, Power BI, or other tools
+### Purpose
 
-## 📋 Features
+This application validates that actual material usage data from Epicor ERP matches the forecast data sent to IP&O forecasting software. It identifies:
 
-- **Simple & Lightweight**: Minimal dependencies, straightforward logic
-- **Clear Organization**: Chronological structure with well-defined sections
-- **Detailed Logging**: Structured debug prints at every pipeline step
-- **Configurable**: JSON-based configuration for all settings
-- **Flexible Output**: CSV, Excel, or Parquet formats
-- **Business Rules Built-In**: Location mapping and usage calculation logic
+- **Missing Parts**: Parts with usage but not in IP&O (critical blind spots)
+- **Data Sync Issues**: Parts that stopped appearing in IP&O
+- **Forecast Variances**: Differences between actual and forecasted usage
+- **Data Quality Problems**: Mismatches requiring investigation
+
+### Key Benefits
+
+✅ **Automated Validation**: Run validations on-demand with single click  
+✅ **Background Processing**: Non-blocking execution with real-time status updates  
+✅ **Interactive Visualizations**: Filter and explore results by date, location, and variance type  
+✅ **Historical Tracking**: All validation runs saved with full audit trail  
+✅ **CSV Export**: Download complete results for analysis in Excel or Power BI  
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.8 or higher
-- Access to StoneAge Manufacturing SQL Server database
-- ODBC Driver 17 for SQL Server (or compatible)
+- Access to StoneAge SQL Server database (SAI-AZRDW02)
+- ODBC Driver 17 for SQL Server
+- Windows Authentication credentials
 
 ### Installation
 
-1. **Clone or download this repository**
-
-2. **Install Python dependencies**
-   ```bash
+1. **Install dependencies**
+   ```powershell
    pip install -r requirements.txt
    ```
 
-3. **Verify database access**
-   
-   The `config.json` file is pre-configured for Windows Authentication. If needed, update:
+2. **Verify database configuration** (config.json)
    ```json
    {
      "database": {
@@ -50,328 +65,568 @@ This pipeline replaces a complex 481-line SQL view with a clean, modular Python 
    }
    ```
 
-### Run the Pipeline
+3. **Run the application**
+   ```powershell
+   python app.py
+   ```
 
-```bash
-python main.py
+4. **Open browser**
+   ```
+   http://localhost:5000
+   ```
+
+---
+
+## 📊 Data Sources
+
+### 1. PartUsage Table
+
+**Source**: Epicor ERP actual material usage  
+**Location**: `MULE_STAGE.dbo.PartUsage`  
+**Grain**: One row per company/plant/part/month combination
+
+**Key Fields**:
+- `company_plant_part` - Composite key (e.g., "SAINC_MfgSys_ABX 326")
+- `endOfMonth` - Period end date
+- `ICUsage` - Intercompany usage quantity
+- `IndirectUsage` - Indirect material usage quantity
+- `DirectUsage` - Direct material usage quantity
+- `RentUsage` - Rental usage quantity
+- Transaction counts for each usage type
+
+**Business Logic**:
+- Represents actual material consumption from ERP system
+- Source of truth for what was actually used
+- Includes both manufactured and purchased parts
+
+### 2. IPOValidation Table
+
+**Source**: Forecast data sent to IP&O software  
+**Location**: `MULE_STAGE.dbo.IPOValidation`  
+**Grain**: One row per company/location/part/period combination
+
+**Key Fields**:
+- `Company` - Company code (SAINC, SAUK, SANL)
+- `Location` - Business location name
+- `Product` - Part number
+- `Period` - Forecast period date
+- `Qty` - Forecasted usage quantity
+
+**Business Logic**:
+- Represents what was communicated to forecasting system
+- Should match actual usage (when properly configured)
+- Missing parts indicate forecasting blind spots
+
+### 3. Part Metadata (sai_dw.Erp.Part)
+
+**Purpose**: Exclusion criteria and part attributes  
+**Location**: `sai_dw.Erp.Part` and `sai_dw.Erp.PartPlant`
+
+**Key Fields**:
+- `ClassID` - Material classification (PUR, MFG, RAW, CSM, etc.)
+- `InActive` - Part lifecycle status
+- `Runout` - Phase-out indicator
+- `NonStock` - Stocking status
+- `ProdCode` - Product category
+
+---
+
+## 🔧 Pipeline Architecture
+
+### 7-Step Validation Process
+
+#### STEP 1: Database Connection
+- Establish SQL Server connection using Windows Authentication
+- Connect to MULE_STAGE database
+- Initialize SQLAlchemy engine
+
+#### STEP 2: Data Extraction
+- Query `PartUsage` table for date range
+- Query `IPOValidation` table for date range
+- Optionally query part metadata for exclusions
+
+#### STEP 3: Normalize PartUsage
+
+**Parsing**:
+```
+"SAINC_MfgSys_ABX 326" → Company: SAINC, Plant: MfgSys, Part: ABX 326
 ```
 
-The pipeline will execute all validation steps and save results to `validation_results.csv`.
+**Location Mapping**:
+| Company | Plant | → | Location |
+|---------|-------|---|----------|
+| SAINC | SAILA | → | StoneAge Louisiana |
+| SAINC | SAIOH, SAICTN | → | StoneAge Ohio |
+| SAINC | SAITX | → | StoneAge Texas |
+| SAINC | MfgSys | → | StoneAge, Inc. |
+| SAUK | MfgSys | → | StoneAge Europe Ltd |
+| SANL | MfgSys | → | StoneAge Netherlands B.V. |
 
-## 📂 Project Structure
-
-```
-ipo_validation/
-├── config.json          # Configuration (database, mappings, rules)
-├── database.py          # Database connection and query functions
-├── utils.py             # Data transformation utilities
-├── main.py              # Pipeline orchestration
-├── requirements.txt     # Python dependencies
-└── README.md           # This file
-```
-
-### File Descriptions
-
-**`config.json`**
-- Database connection settings
-- Date range configuration
-- Location mappings (Plant → Location name)
-- Business rules (usage calculation)
-- Output options
-
-**`database.py`**
-- `DatabaseConnection` class for SQL Server connectivity
-- Query functions for `PartUsage`, `IPOValidation`, and metadata tables
-- Connection pooling and cleanup
-
-**`utils.py`**
-- Section 1: Parsing (composite key extraction)
-- Section 2: Normalization (data standardization)
-- Section 3: Filtering (exclusion rules)
-- Section 4: Comparison (variance calculation)
-- Section 5: Categorization (variance classification)
-
-**`main.py`**
-- Pipeline orchestration (7-step process)
-- Configuration loading
-- Summary statistics generation
-- Results export
-
-## 🔧 Configuration
-
-### Date Range
-
-Set the validation period in `config.json`:
-
-```json
-"validation": {
-  "start_date": "2020-01-31",
-  "end_date": "2025-08-31",
-  "companies": ["SAINC", "SAUK", "SANL"],
-  "excluded_companies": ["SAFR"]
-}
-```
-
-### Location Mappings
-
-Plant codes are mapped to business-friendly location names:
-
-| Company | Plant Code | Location Name |
-|---------|------------|---------------|
-| SAINC | SAILA | StoneAge Louisiana |
-| SAINC | SAIOH, SAICTN | StoneAge Ohio |
-| SAINC | SAITX | StoneAge Texas |
-| SAINC | MfgSys | StoneAge, Inc. |
-| SAUK | MfgSys | StoneAge Europe Ltd |
-| SANL | MfgSys | StoneAge Netherlands B.V. |
-
-### Usage Calculation Rules
-
+**Usage Calculation**:
 - **SAINC MfgSys**: `ICUsage + IndirectUsage + DirectUsage`
 - **All Other Locations**: `DirectUsage` only
 
-These rules are defined in `config.json` under `rules.usage_calculation`.
+**Date Normalization**:
+- Convert all dates to end-of-month format
+- Ensures consistent join with IPOValidation
 
-### Exclusions (Optional)
+**Output Schema**:
+```
+company, location, plant, part_num, period, actual_usage
+```
 
-To filter out inactive parts, non-stock items, and low-usage parts:
+#### STEP 4: Normalize IPOValidation
+
+**Transformations**:
+- Standardize column names (lowercase with underscores)
+- Normalize dates to end-of-month
+- Rename columns for consistency
+
+**Output Schema**:
+```
+company, location, part_num, period, ipo_usage
+```
+
+#### STEP 5: Apply Exclusions (Optional)
+
+**When Enabled** (`apply_exclusions: true`):
+
+Parts are excluded if ANY of the following are true:
+
+| Criterion | Rule | Reason |
+|-----------|------|--------|
+| **NonStock** | `= True` | Non-stocked items aren't forecasted |
+| **InActive** | `= True` | Inactive parts shouldn't be in IP&O |
+| **Runout** | `= True` | Phase-out parts excluded |
+| **ClassID** | `IN ('RAW', 'CSM')` | Raw materials and consumables |
+| **Low Usage** | `≤2 units in 12 months` | Insufficient history for forecasting |
+
+**When Disabled** (`apply_exclusions: false`):
+- All parts are validated (current default)
+- Results may include parts that should be filtered
+- Useful for comprehensive data quality assessment
+
+#### STEP 6: Compare Datasets
+
+**Join Logic**:
+```sql
+FULL OUTER JOIN ON (company, location, part_num, period)
+```
+
+**Variance Calculation**:
+```python
+variance = ipo_usage - actual_usage
+variance_percent = |variance| / actual_usage * 100
+absolute_variance = |variance|
+```
+
+**Edge Cases**:
+- Both zero → `variance_percent = 0%` (perfect match)
+- Actual is zero, IPO has data → `variance_percent = 999.99` (flag)
+- IPO is zero, Actual has data → `variance_percent = -999.99` (flag)
+
+**Results Include**:
+- All records from both sources (even if only in one)
+- Records unique to PartUsage (missing from IP&O)
+- Records unique to IPOValidation (overforecasted)
+- Records in both systems (variance analysis)
+
+#### STEP 7: Categorize Variances
+
+**Variance Categories**:
+
+| Category | Condition | Severity | Description |
+|----------|-----------|----------|-------------|
+| **Perfect Match** | actual = ipo (exactly) | ✅ None | Data integrity confirmed |
+| **Missing From IP&O** | actual > 0, ipo = 0 | 🔴 Critical | Usage occurred but IP&O got zero (underforecast blind spot) |
+| **Missing From Usage** | actual = 0, ipo > 0 | 🟠 High | IP&O has data but no actual usage (overforecast) |
+| **More In Usage** | actual > ipo | 🟡 Medium | Actual usage higher than forecast (underforecast) |
+| **More In IP&O** | ipo > actual | 🔵 Low | Forecast higher than actual (overforecast) |
+
+---
+
+## 🌐 Webapp Features
+
+### Home Page (/)
+
+**Purpose**: Launch point and configuration display
+
+**Features**:
+- Current validation configuration display
+  - Date range
+  - Companies included
+  - Database connection
+  - Exclusion status
+- Single-click validation launch
+- Error message display
+- Quick link to validation history
+
+### Validation Execution
+
+**Process**:
+1. Click "Start Validation Check"
+2. Validation submitted to background executor
+3. Redirect to results page with loading spinner
+4. Page auto-refreshes every 2 seconds
+5. Displays results when complete
+
+**Background Processing**:
+- Non-blocking execution (Flask-Executor)
+- Status tracked in `validations/metadata.json`
+- Real-time status API endpoint
+- Automatic error capture and display
+
+### Results Page (/validations/<id>)
+
+**Summary Statistics**:
+- Total Records
+- Total Variances
+- Perfect Matches
+- Critical Issues (Missing From IP&O + Missing From Usage)
+
+**Interactive Stacked Bar Chart**:
+- Timeline view of variances over months
+- Color-coded by variance category
+- Percentage labels on segments (when >3% of bar)
+- Hover tooltips with detailed counts
+- Responsive design with consistent y-axis scaling
+
+**Slicers (Filters)**:
+1. **Location Slicer**: Toggle locations on/off
+2. **Year Slicer**: Filter by year
+3. **Month Slicer**: Filter by month (Jan-Dec)
+4. Multi-select enabled (click to toggle)
+5. Client-side filtering (instant updates)
+
+**Detailed Breakdowns**:
+- Date range summary
+- Variance category distribution
+- Company breakdown with percentages
+- Location breakdown with percentages
+- Variance by Company (nested)
+- Variance by Location (nested)
+- Variance magnitude statistics (mean, median, max)
+
+**Download**:
+- Complete results as CSV
+- All columns included for detailed analysis
+- File naming: `validation_YYYYMMDD_HHMMSS.csv`
+
+### Validation Dashboard (/validations)
+
+**Purpose**: Historical tracking and quick access
+
+**Features**:
+- Grid view of all past validations
+- Status badges (completed, running, failed)
+- Date range and company info
+- Record counts and critical issue counts
+- Quick actions:
+  - View Results
+  - Download CSV
+  - Check Status (for running validations)
+- Pagination (20 per page)
+- Empty state with helpful message
+
+**Validation Cards**:
+- Validation ID (timestamp-based)
+- Timestamp
+- Status indicator
+- Configuration summary
+- Performance metrics (for completed)
+
+---
+
+## ⚙️ Configuration
+
+### config.json Structure
 
 ```json
-"options": {
-  "apply_exclusions": true
-}
-```
-
-**Note**: Exclusions are disabled by default for simplicity. When enabled, the pipeline queries part metadata and filters based on:
-- Inactive parts (`InActive = 1`)
-- Runout parts (`Runout = 1`)
-- Non-stock items (`NonStock = 1`)
-- Raw materials or consumables (`ClassID IN ('RAW', 'CSM')`)
-
-### Output Options
-
-```json
-"options": {
-  "output_format": "csv",      // Options: "csv", "excel", "parquet"
-  "output_path": "validation_results.csv"
-}
-```
-
-## 📊 Pipeline Steps
-
-The validation pipeline executes in **7 sequential steps**:
-
-```
-[STEP 1/7] DATABASE CONNECTION
-    → Connect to SQL Server using config settings
-
-[STEP 2/7] DATA EXTRACTION
-    → Query PartUsage table (Epicor actual usage)
-    → Query IPOValidation table (sent to IP&O)
-
-[STEP 3/7] NORMALIZE PARTUSAGE
-    → Parse company_plant_part composite keys
-    → Map plant codes to location names
-    → Calculate usage based on business rules
-    → Normalize dates to end-of-month
-
-[STEP 4/7] NORMALIZE IPOVALIDATION
-    → Standardize column names
-    → Normalize dates to end-of-month
-
-[STEP 5/7] APPLY EXCLUSIONS (Optional)
-    → Filter excluded parts (if enabled)
-
-[STEP 6/7] COMPARE DATASETS
-    → FULL OUTER JOIN on (company, location, part_num, period)
-    → Calculate variance (ipo_usage - actual_usage)
-    → Calculate variance percentage
-
-[STEP 7/7] CATEGORIZE VARIANCES
-    → Assign variance categories
-    → Generate distribution statistics
-```
-
-## 📈 Output
-
-### Output Columns
-
-| Column | Description |
-|--------|-------------|
-| `company` | Company code (SAINC, SAUK, SANL) |
-| `location` | Business-friendly location name |
-| `part_num` | Part number |
-| `period` | Period end date (last day of month) |
-| `actual_usage` | Calculated usage from Epicor PartUsage |
-| `ipo_usage` | Usage value sent to IP&O software |
-| `variance` | Difference (ipo_usage - actual_usage) |
-| `variance_percent` | Percentage variance (handles edge cases) |
-| `absolute_variance` | Absolute value of variance |
-| `variance_category` | Category classification (see below) |
-
-### Variance Categories
-
-| Category | Severity | Description |
-|----------|----------|-------------|
-| `PERFECT_MATCH` | ✅ None | Exact data alignment between systems |
-| `MISSING_FROM_IPO` | ❌❌ Critical | Actual usage occurred but IP&O received zero (underforecast) |
-| `MISSING_FROM_USAGE` | ❌ High | IP&O has data but no actual usage recorded (overforecast) |
-| `MORE_IN_USAGE` | ⚠️ Medium | Actual usage higher than IP&O (partial underforecast) |
-| `MORE_IN_IPO` | ⚠️ Low | IP&O shows higher usage than actual (partial overforecast) |
-
-### Summary Statistics
-
-After execution, the pipeline prints detailed summary statistics:
-
-- Total records processed
-- Variance counts and percentages
-- Critical issue counts
-- Breakdown by variance category
-- Breakdown by company
-- Date range coverage
-- Variance magnitude statistics
-
-## 🔍 Debug Output
-
-The pipeline provides structured logging with prefixed tags:
-
-```
-[CONFIG]          - Configuration loading
-[DATABASE]        - Database connection and queries
-[PARSING]         - Composite key parsing
-[NORMALIZE]       - Data normalization steps
-[EXCLUSIONS]      - Exclusion filtering (if enabled)
-[COMPARISON]      - Dataset comparison and variance calculation
-[CATEGORIZATION]  - Variance categorization
-[OUTPUT]          - File output operations
-[SUMMARY]         - Final statistics
-[METRICS]         - Performance metrics
-[BREAKDOWN]       - Distribution breakdowns
-```
-
-Each step shows:
-- Input/output record counts
-- Processing progress
-- Data quality metrics
-- Timing information
-
-## 🛠️ Troubleshooting
-
-### Connection Issues
-
-**Error: "Can't open lib 'ODBC Driver 17 for SQL Server'"**
-
-Install the ODBC driver:
-- Windows: https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
-- Or update `DB_DRIVER` in `config.json` to match your installed driver
-
-**Error: "Login failed for user"**
-
-For Windows Authentication:
-```json
-"use_windows_auth": true
-```
-
-For SQL Authentication:
-```json
-"use_windows_auth": false,
-"username": "your_username",
-"password": "your_password"
-```
-
-**Error: "Invalid object name 'PartUsage'" or "'IPOValidation'"**
-
-Ensure:
-- Tables exist in the specified database
-- Your user has SELECT permissions
-- Database name is correct in `config.json`
-
-### Performance Issues
-
-**Pipeline runs slowly**
-
-- Reduce date range in `config.json`
-- Check database server performance
-- Consider adding indexes to `PartUsage` and `IPOValidation` tables
-
-**Memory errors with large datasets**
-
-- Use Parquet output format instead of CSV
-- Process data in smaller date ranges
-- Increase available system memory
-
-### Data Quality Issues
-
-**"UNMAPPED_LOCATION_COMPANY_PLANT" appears in results**
-
-A plant code isn't mapped in `config.json`. Add the mapping:
-```json
-"mappings": {
-  "locations": {
-    "COMPANY": {
-      "PLANT": "Location Name"
+{
+  "database": {
+    "server": "SAI-AZRDW02",
+    "database": "MULE_STAGE",
+    "port": 1433,
+    "driver": "ODBC Driver 17 for SQL Server",
+    "use_windows_auth": true,
+    "username": "",
+    "password": ""
+  },
+  "validation": {
+    "start_date": "2025-05-01",
+    "end_date": "2025-08-31",
+    "companies": ["SAINC", "SAUK", "SANL"],
+    "excluded_companies": ["SAFR"]
+  },
+  "mappings": {
+    "locations": {
+      "SAINC": {
+        "SAILA": "StoneAge Louisiana",
+        "SAIOH": "StoneAge Ohio",
+        "SAICTN": "StoneAge Ohio",
+        "SAITX": "StoneAge Texas",
+        "MfgSys": "StoneAge, Inc."
+      },
+      "SANL": {
+        "MfgSys": "StoneAge Netherlands B.V."
+      },
+      "SAUK": {
+        "MfgSys": "StoneAge Europe Ltd"
+      }
     }
+  },
+  "rules": {
+    "usage_calculation": {
+      "sainc_mfgsys_components": ["ICUsage", "IndirectUsage", "DirectUsage"],
+      "default_component": "DirectUsage"
+    }
+  },
+  "options": {
+    "apply_exclusions": true,
+    "output_format": "csv",
+    "output_path": "validation_results.csv"
   }
 }
 ```
 
-**Unexpected variance percentages (999.99 or -999.99)**
+### Key Configuration Options
 
-These are flag values:
-- `999.99`: Actual is zero, IPO has data (infinite variance)
-- `-999.99`: IPO is zero, Actual has data (missing from IPO)
+**Date Range**:
+- `start_date` / `end_date`: Validation period
+- Format: YYYY-MM-DD
+- Filters both PartUsage and IPOValidation
 
-## 📊 Typical Performance
+**Companies**:
+- `companies`: List of companies to validate
+- `excluded_companies`: Companies to skip (e.g., SAFR not yet in IP&O)
 
-Expected performance metrics (hardware-dependent):
+**Exclusions**:
+- `apply_exclusions: true`: Filter out non-forecasted parts
+- `apply_exclusions: false`: Validate all parts (shows configuration issues)
 
-- **Processing Speed**: 10,000-50,000 records/second
-- **5-Year Dataset**: <30 seconds total execution
-- **Memory Usage**: 200-500 MB for typical datasets
+**Location Mappings**:
+- Add new locations as needed
+- Format: `"COMPANY": { "PLANT": "Location Name" }`
 
-## 🔄 Migration from SQL View
+---
 
-This Python pipeline replaces the original `vw_ipo_validation.sql` view with several advantages:
+## 📁 Project Structure
 
-✅ **Modularity**: Each transformation step is a separate function  
-✅ **Testability**: Easy to unit test individual components  
-✅ **Debuggability**: Can inspect intermediate DataFrames  
-✅ **Flexibility**: Easy to add new rules or modify existing logic  
-✅ **Performance**: Can parallelize or optimize specific steps  
-✅ **Maintainability**: Clear structure, well-documented business logic  
+```
+IPO_Validation_2/
+├── app.py                      # Flask application and routes
+├── config.json                 # Configuration file
+├── requirements.txt            # Python dependencies
+│
+├── utils/                      # Pipeline modules
+│   ├── __init__.py
+│   ├── main.py                # Pipeline orchestration
+│   ├── database.py            # Database connection and queries
+│   └── utils.py               # Data transformation functions
+│
+├── templates/                  # HTML templates (Jinja2)
+│   ├── base.html              # Base template with header/footer
+│   ├── index.html             # Home page
+│   ├── dashboard.html         # Validation history
+│   └── results.html           # Results with charts
+│
+├── static/                     # Static assets
+│   ├── css/
+│   │   └── style.css          # StoneAge-branded styling
+│   └── js/
+│       └── charts.js          # Chart.js logic and filtering
+│
+├── validations/                # Auto-generated (gitignored)
+│   ├── metadata.json          # Validation tracking
+│   └── *.csv                  # Individual validation results
+│
+├── tests/examples/             # Investigation templates
+│   ├── AI_AGENT_GUIDE.md      # Part investigation methodology
+│   ├── README.md              # Examples documentation
+│   └── test_template.py       # Investigation script template
+│
+└── dev/                        # SQL and development files
+    └── vw_ipo_validation.sql  # Original SQL view (reference)
+```
 
-## 📝 Next Steps
+---
 
-After running the pipeline:
+## 🚀 Deployment
 
-1. **Open results in Excel or Power BI**
-   ```bash
-   # Results saved to: validation_results.csv
+### Local Development
+
+```powershell
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server
+python app.py
+
+# Access at http://localhost:5000
+```
+
+### Production Deployment
+
+**Configuration Changes**:
+1. Set `app.secret_key` to a secure random value
+2. Change `app.run(debug=True)` to `app.run(debug=False)`
+3. Use production WSGI server:
+   ```powershell
+   pip install gunicorn
+   gunicorn -w 4 -b 0.0.0.0:5000 app:app
    ```
 
-2. **Filter by variance category** to focus on specific issues
-   - Start with `MISSING_FROM_IPO` (critical issues)
-   - Review `MISSING_FROM_USAGE` (overforecast issues)
+**Environment Variables**:
+```
+FLASK_ENV=production
+FLASK_SECRET_KEY=<secure-random-key>
+```
 
-3. **Sort by absolute_variance** to find largest discrepancies
+**Database Access**:
+- Ensure production server has SQL Server access
+- Verify Windows Authentication or configure SQL Auth
+- Test connection before deployment
 
-4. **Analyze trends over time** using the `period` column
+---
 
-5. **Drill down by company or location** for targeted analysis
+## 🔍 Troubleshooting
 
-## 🤝 Support
+### Database Connection Issues
 
-For issues or questions:
-- **Application issues**: Review error messages in console output
-- **Data discrepancies**: Check business rules in `config.json`
-- **Database access**: Contact your database administrator
+**Error: "Can't open lib 'ODBC Driver 17 for SQL Server'"**
 
-## 📄 License
+**Solution**: Install ODBC driver
+- Windows: https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
+- Or update `config.json` to use installed driver
+
+**Error: "Login failed for user"**
+
+**Solution**: Check authentication settings
+- Windows Auth: Ensure `use_windows_auth: true`
+- SQL Auth: Set `use_windows_auth: false` and provide credentials
+
+**Error: "Invalid object name 'PartUsage' or 'IPOValidation'"**
+
+**Solution**: Verify database access
+- Check table exists in MULE_STAGE database
+- Confirm SELECT permissions granted
+- Test connection with Azure Data Studio or SSMS
+
+### Validation Issues
+
+**Validation stuck on "running" status**
+
+**Causes**:
+- Database connection timeout
+- Query taking too long
+- Python error in pipeline
+
+**Solutions**:
+1. Check terminal/console for error messages
+2. Review `validations/metadata.json` for error field
+3. Reduce date range for initial testing
+4. Verify database performance
+
+**Chart not displaying**
+
+**Causes**:
+- Chart.js CDN not accessible
+- JavaScript error
+- No data in results
+
+**Solutions**:
+1. Check browser console for JavaScript errors
+2. Verify CSV file created in `validations/` directory
+3. Ensure data exists for selected date range
+4. Test with different filters
+
+**"File not found" when downloading**
+
+**Causes**:
+- Validation failed to complete
+- CSV file not created
+- File system permissions
+
+**Solutions**:
+1. Check validation status in dashboard
+2. Look for CSV file in `validations/` directory
+3. Review terminal logs for write errors
+4. Verify folder permissions
+
+### Performance Issues
+
+**Slow query performance**
+
+**Solutions**:
+- Add indexes to PartUsage.endOfMonth and IPOValidation.Period
+- Add indexes to company_plant_part composite key
+- Reduce date range in config
+- Query specific companies only
+
+**High memory usage**
+
+**Solutions**:
+- Process data in smaller date ranges
+- Use streaming for large datasets
+- Increase system memory allocation
+- Consider data archival strategy
+
+---
+
+## 📊 Output Schema
+
+### CSV Export Columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `company` | string | Company code (SAINC, SAUK, SANL) |
+| `location` | string | Business-friendly location name |
+| `part_num` | string | Part number |
+| `period` | date | Period end date (last day of month) |
+| `actual_usage` | float | Calculated usage from PartUsage |
+| `ipo_usage` | float | Usage value sent to IP&O |
+| `variance` | float | Difference (ipo_usage - actual_usage) |
+| `variance_percent` | float | Percentage variance |
+| `absolute_variance` | float | Absolute value of variance |
+| `variance_category` | string | Category (Perfect Match, Missing From IP&O, etc.) |
+
+---
+
+## 🎨 Design System
+
+### StoneAge Branding
+
+**Colors**:
+- **Burnt Orange**: `#af5d1b` (primary brand color)
+- **Dark Gray**: `#333F48` (text and headers)
+- **Off-White**: `#F8F9FA` (background)
+- **Success Green**: `#00a65a` (Perfect Match)
+- **Error Red**: `#e4104e` (Missing From IP&O)
+- **Warning Orange**: `#ff8c00` (Missing From Usage)
+- **Info Blue**: `#4169e1` (More In IP&O)
+- **Purple**: `#9370db` (More In Usage)
+
+**Typography**:
+- **Font Family**: Roboto (Google Fonts)
+- **Weights**: 400 (regular), 500 (medium), 700 (bold)
+
+---
+
+## 📝 License
 
 Internal use only - StoneAge Manufacturing
 
 ---
 
-**Built with ❤️ for StoneAge Manufacturing**  
-*Replacing bloated SQL with clean, maintainable Python*
+## 🤝 Support
 
+For issues or questions:
+- **Application bugs**: Check terminal logs and browser console
+- **Data discrepancies**: Review business rules in config.json
+- **Database access**: Contact database administrator
+- **Part investigations**: See `tests/examples/AI_AGENT_GUIDE.md`
+
+---
+
+**Built with ❤️ for StoneAge Manufacturing**  
+*Clean Python architecture replacing complex SQL views*
