@@ -233,15 +233,15 @@ def print_summary_statistics(df: pd.DataFrame):
     
     # Overall metrics
     total_records = len(df)
-    total_variance_count = len(df[df['variance_category'] != 'PERFECT_MATCH'])
+    total_variance_count = len(df[df['variance_category'] != 'Perfect Match'])
     variance_percentage = total_variance_count / total_records * 100 if total_records > 0 else 0
     
     print(f"\n[METRICS] Total Records: {total_records:,}")
     print(f"[METRICS] Total Variances: {total_variance_count:,} ({variance_percentage:.1f}%)")
-    print(f"[METRICS] Perfect Matches: {len(df[df['variance_category'] == 'PERFECT_MATCH']):,}")
+    print(f"[METRICS] Perfect Matches: {len(df[df['variance_category'] == 'Perfect Match']):,}")
     
     # Critical issues
-    critical_issues = len(df[df['variance_category'].isin(['MISSING_FROM_IPO', 'MISSING_FROM_USAGE'])])
+    critical_issues = len(df[df['variance_category'].isin(['Missing From IP&O', 'Missing From Usage'])])
     print(f"[METRICS] Critical Issues: {critical_issues:,}")
     
     # Variance category breakdown

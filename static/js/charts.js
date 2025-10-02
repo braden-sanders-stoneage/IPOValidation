@@ -2,9 +2,21 @@ let chart;
 let rawData;
 let chartColors;
 
+// Define stacking order (bottom to top)
+const CATEGORY_ORDER = [
+    'Perfect Match',      // Bottom (green)
+    'More In IP&O',       // (blue)
+    'More In Usage',      // (purple)
+    'Missing From Usage', // (orange)
+    'Missing From IP&O'   // Top (red)
+];
+
 function initChart(data, colors) {
     rawData = data;
     chartColors = colors;
+    
+    // Register datalabels plugin
+    Chart.register(ChartDataLabels);
     
     const ctx = document.getElementById('validationChart').getContext('2d');
     
@@ -19,7 +31,7 @@ function initChart(data, colors) {
         data: aggregated,
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             animation: {
                 duration: 600,
                 easing: 'easeInOutQuart'
@@ -64,6 +76,35 @@ function initChart(data, colors) {
                             return 'Total: ' + total.toLocaleString();
                         }
                     }
+                },
+                datalabels: {
+                    color: '#ffffff',
+                    font: {
+                        weight: 'bold',
+                        size: 12
+                    },
+                    formatter: function(value, context) {
+                        // Calculate total for this bar
+                        let total = 0;
+                        const datasetArray = context.chart.data.datasets;
+                        datasetArray.forEach((dataset) => {
+                            if (dataset.data[context.dataIndex]) {
+                                total += dataset.data[context.dataIndex];
+                            }
+                        });
+                        
+                        // Calculate percentage
+                        const percentage = total > 0 ? (value / total * 100) : 0;
+                        
+                        // Only show label if segment is >= 3% of total (tall enough to read)
+                        if (percentage >= 3) {
+                            return percentage.toFixed(1) + '%';
+                        }
+                        return null; // Hide label for small segments
+                    },
+                    anchor: 'center',
+                    align: 'center',
+                    clamp: true
                 }
             }
         }
@@ -85,8 +126,8 @@ function aggregateData(data, selectedLocations, startDate, endDate) {
     // Get unique months and sort them
     const months = [...new Set(filtered.map(row => row.month))].sort();
     
-    // Get unique variance categories
-    const categories = [...new Set(filtered.map(row => row.variance_category))];
+    // Always use all categories in the defined order (for consistent legend)
+    const categories = CATEGORY_ORDER;
     
     // Aggregate counts by month and category
     const aggregated = {};
@@ -98,7 +139,9 @@ function aggregateData(data, selectedLocations, startDate, endDate) {
     });
     
     filtered.forEach(row => {
-        aggregated[row.variance_category][row.month] += row.count;
+        if (aggregated[row.variance_category]) {
+            aggregated[row.variance_category][row.month] += row.count;
+        }
     });
     
     // Build Chart.js dataset format
@@ -179,8 +222,8 @@ function applyFilters() {
     // Get unique months and sort them
     const months = [...new Set(filtered.map(row => row.month))].sort();
     
-    // Get unique variance categories
-    const categories = [...new Set(filtered.map(row => row.variance_category))];
+    // Always use all categories in the defined order (for consistent legend)
+    const categories = CATEGORY_ORDER;
     
     // Aggregate counts by month and category
     const aggregated = {};
@@ -192,7 +235,9 @@ function applyFilters() {
     });
     
     filtered.forEach(row => {
-        aggregated[row.variance_category][row.month] += row.count;
+        if (aggregated[row.variance_category]) {
+            aggregated[row.variance_category][row.month] += row.count;
+        }
     });
     
     // Build datasets
@@ -205,21 +250,26 @@ function applyFilters() {
     // Update labels
     chart.data.labels = months;
     
-    // Update each dataset's data in place
-    datasets.forEach((newDataset, index) => {
-        if (chart.data.datasets[index]) {
-            chart.data.datasets[index].data = newDataset.data;
+    // Update datasets in place by matching labels (not indices) to preserve smooth animation
+    datasets.forEach(newDataset => {
+        // Find existing dataset with matching label
+        const existingDataset = chart.data.datasets.find(ds => ds.label === newDataset.label);
+        
+        if (existingDataset) {
+            // Update existing dataset's data in place
+            existingDataset.data = newDataset.data;
         } else {
+            // Add new dataset if it doesn't exist
             chart.data.datasets.push(newDataset);
         }
     });
     
-    // Remove excess datasets
-    while (chart.data.datasets.length > datasets.length) {
-        chart.data.datasets.pop();
-    }
+    // Remove datasets that are no longer in the filtered data
+    chart.data.datasets = chart.data.datasets.filter(ds => 
+        datasets.some(newDs => newDs.label === ds.label)
+    );
     
-    // Smooth update
+    // Smooth update without full re-render
     chart.update('default');
 }
 

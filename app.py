@@ -55,7 +55,7 @@ def run_validation_job(validation_id, config):
         
         validation_entry['status'] = 'completed'
         validation_entry['total_records'] = len(results)
-        validation_entry['critical_issues'] = len(results[results['variance_category'].isin(['MISSING_FROM_IPO', 'MISSING_FROM_USAGE'])])
+        validation_entry['critical_issues'] = len(results[results['variance_category'].isin(['Missing From IP&O', 'Missing From Usage'])])
         validation_entry['execution_time'] = (end_time - start_time).total_seconds()
         save_metadata(metadata)
         
@@ -181,9 +181,9 @@ def view_validation(validation_id):
     
     summary_stats = {
         'total_records': total_records,
-        'total_variances': len(df[df['variance_category'] != 'PERFECT_MATCH']),
-        'perfect_matches': len(df[df['variance_category'] == 'PERFECT_MATCH']),
-        'critical_issues': len(df[df['variance_category'].isin(['MISSING_FROM_IPO', 'MISSING_FROM_USAGE'])]),
+        'total_variances': len(df[df['variance_category'] != 'Perfect Match']),
+        'perfect_matches': len(df[df['variance_category'] == 'Perfect Match']),
+        'critical_issues': len(df[df['variance_category'].isin(['Missing From IP&O', 'Missing From Usage'])]),
         'variance_counts': variance_counts,
         'company_counts': company_counts,
         'location_counts': location_counts,
@@ -198,13 +198,12 @@ def view_validation(validation_id):
     }
     
     # Send raw data to JavaScript for client-side aggregation
-    # Using StoneAge official color palette
     colors = {
-        'PERFECT_MATCH': '#00a65a',      # success.main
-        'MISSING_FROM_IPO': '#e4104e',   # danger.main
-        'MISSING_FROM_USAGE': '#f1d622',  # warning.main
-        'MORE_IN_USAGE': '#53acdb',      # info.main
-        'MORE_IN_IPO': '#6D7878'         # common.border
+        'Perfect Match': '#00a65a',      # Green
+        'Missing From IP&O': '#e4104e',  # Red
+        'Missing From Usage': '#ff8c00', # Orange
+        'More In IP&O': '#4169e1',       # Blue
+        'More In Usage': '#9370db'       # Purple
     }
     
     return render_template('results.html', 

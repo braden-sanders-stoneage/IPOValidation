@@ -36,7 +36,7 @@ PERIOD = "2025-08-31"       # Period date (YYYY-MM-DD format, end of month)
 # Expected values from validation results (for verification)
 EXPECTED_ACTUAL_USAGE = 0   # actual_usage from CSV
 EXPECTED_IPO_USAGE = 0      # ipo_usage from CSV
-EXPECTED_VARIANCE_CATEGORY = "MISSING_FROM_IPO"  # variance_category from CSV
+EXPECTED_VARIANCE_CATEGORY = "Missing From IP&O"  # variance_category from CSV
 
 
 # ============================================================================

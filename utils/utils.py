@@ -355,11 +355,11 @@ def categorize_variance(row) -> str:
     Categorize variance type
     
     Categories:
-    - PERFECT_MATCH: Exact match (actual == ipo)
-    - MISSING_FROM_IPO: Actual usage occurred but IPO got zero (critical)
-    - MISSING_FROM_USAGE: IPO has data but no actual usage recorded
-    - MORE_IN_USAGE: Actual usage higher than IPO (underforecast)
-    - MORE_IN_IPO: IPO shows higher usage than actual (overforecast)
+    - Perfect Match: Exact match (actual == ipo)
+    - Missing From IP&O: Actual usage occurred but IPO got zero (critical)
+    - Missing From Usage: IPO has data but no actual usage recorded
+    - More In Usage: Actual usage higher than IPO (underforecast)
+    - More In IP&O: IPO shows higher usage than actual (overforecast)
     
     Args:
         row: DataFrame row with actual_usage and ipo_usage
@@ -372,23 +372,23 @@ def categorize_variance(row) -> str:
     
     # Exact match
     if abs(ipo - actual) == 0:
-        return 'PERFECT_MATCH'
+        return 'Perfect Match'
     
     # IPO has data but no actual usage
     if actual == 0 and ipo != 0:
-        return 'MISSING_FROM_USAGE'
+        return 'Missing From Usage'
     
     # Actual usage occurred but IPO got zero (CRITICAL)
     if actual != 0 and ipo == 0:
-        return 'MISSING_FROM_IPO'
+        return 'Missing From IP&O'
     
     # IPO shows higher usage than actual
     if ipo > actual:
-        return 'MORE_IN_IPO'
+        return 'More In IP&O'
     
     # Actual usage higher than IPO
     if actual > ipo:
-        return 'MORE_IN_USAGE'
+        return 'More In Usage'
     
     return 'ERROR'
 
