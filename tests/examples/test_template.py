@@ -16,11 +16,11 @@ For detailed methodology, see: tests/examples/AI_AGENT_GUIDE.md
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import json
 import pandas as pd
-from database import DatabaseConnection
+from utils.database import DatabaseConnection
 
 
 # ============================================================================

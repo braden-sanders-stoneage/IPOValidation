@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
-from main import run_validation_pipeline, load_config
+from utils.main import run_validation_pipeline, load_config
 
 app = Flask(__name__)
 app.secret_key = 'ipo-validation-secret-key-2025'
