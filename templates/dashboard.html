@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Validation Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="page-title">Validation History</h1>
+
+    {% if validations %}
+    <div class="validation-grid">
+        {% for validation in validations %}
+        <div class="validation-card">
+            <div class="validation-header">
+                <span class="validation-id">{{ validation.id }}</span>
+                <span class="status-badge status-{{ validation.status }}">{{ validation.status.upper() }}</span>
+            </div>
+            <div class="validation-info">
+                <strong>Date Range:</strong> {{ validation.date_range.start }} to {{ validation.date_range.end }}
+            </div>
+            <div class="validation-info">
+                <strong>Companies:</strong> {{ validation.companies | join(', ') }}
+            </div>
+            {% if validation.status == 'completed' %}
+            <div class="validation-info">
+                <strong>Records:</strong> {{ "{:,}".format(validation.total_records) }} | 
+                <strong>Critical Issues:</strong> {{ validation.critical_issues }}
+            </div>
+            {% endif %}
+            <div class="validation-actions">
+                {% if validation.status == 'completed' %}
+                <a href="{{ url_for('view_validation', validation_id=validation.id) }}" class="btn btn-small">
+                    <span>View Results</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                <a href="{{ url_for('download_validation', validation_id=validation.id) }}" class="btn btn-small btn-secondary">
+                    <span>Download CSV</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <a href="{{ url_for('view_validation', validation_id=validation.id) }}" class="btn btn-small">
+                    <span>Check Status</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('validations_dashboard', page=page-1) }}">← Previous</a>
+        {% endif %}
+        
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="active">{{ p }}</span>
+            {% else %}
+            <a href="{{ url_for('validations_dashboard', page=p) }}">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page < total_pages %}
+        <a href="{{ url_for('validations_dashboard', page=page+1) }}">Next →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="card empty-state">
+        <p class="empty-state-text">No validations have been run yet.</p>
+        <div class="empty-state-action">
+            <a href="{{ url_for('index') }}" class="btn">
+                <span>Run Your First Validation</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

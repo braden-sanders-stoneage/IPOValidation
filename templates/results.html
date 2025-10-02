@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Validation Results{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="page-title">Validation Results: {{ validation.id }}</h1>
+
+    {% if status == 'running' or status == 'pending' %}
+    <div class="loading">
+        <div class="spinner"></div>
+        <h2>Validation in Progress...</h2>
+        <p>This may take 10-30 seconds. The page will refresh automatically when complete.</p>
+    </div>
+
+    <script>
+        function checkStatus() {
+            fetch('/api/status/{{ validation.id }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        window.location.reload();
+                    } else if (data.status === 'failed') {
+                        window.location.href = '/?error=' + encodeURIComponent(data.error || 'Validation failed');
+                    }
+                });
+        }
+
+        setInterval(checkStatus, 2000);
+    </script>
+
+    {% elif status == 'completed' %}
+    
+    <div class="chart-with-filters">
+        <div class="chart-area">
+            <canvas id="validationChart" style="max-height: 600px;"></canvas>
+        </div>
+        
+        <div class="filters-sidebar">
+            <div class="slicer-group">
+                <h4 class="slicer-title">Locations</h4>
+                <div class="slicer-buttons" id="location-slicer">
+                    {% for location in locations %}
+                    <button class="slicer-btn active" data-value="{{ location }}">{{ location }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="slicer-group">
+                <h4 class="slicer-title">Years</h4>
+                <div class="slicer-buttons" id="year-slicer">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="slicer-group">
+                <h4 class="slicer-title">Months</h4>
+                <div class="slicer-buttons" id="month-slicer">
+                    <button class="slicer-btn active" data-value="01">Jan</button>
+                    <button class="slicer-btn active" data-value="02">Feb</button>
+                    <button class="slicer-btn active" data-value="03">Mar</button>
+                    <button class="slicer-btn active" data-value="04">Apr</button>
+                    <button class="slicer-btn active" data-value="05">May</button>
+                    <button class="slicer-btn active" data-value="06">Jun</button>
+                    <button class="slicer-btn active" data-value="07">Jul</button>
+                    <button class="slicer-btn active" data-value="08">Aug</button>
+                    <button class="slicer-btn active" data-value="09">Sep</button>
+                    <button class="slicer-btn active" data-value="10">Oct</button>
+                    <button class="slicer-btn active" data-value="11">Nov</button>
+                    <button class="slicer-btn active" data-value="12">Dec</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ "{:,}".format(summary.total_records) }}</div>
+            <div class="stat-label">Total Records</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ "{:,}".format(summary.total_variances) }}</div>
+            <div class="stat-label">Total Variances</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ "{:,}".format(summary.perfect_matches) }}</div>
+            <div class="stat-label">Perfect Matches</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ "{:,}".format(summary.critical_issues) }}</div>
+            <div class="stat-label">Critical Issues</div>
+        </div>
+    </div>
+
+    <div class="summary-section">
+        <h3>Date Range</h3>
+        <div class="summary-item">
+            <span>Earliest Period</span>
+            <span><strong>{{ summary.date_range.start }}</strong></span>
+        </div>
+        <div class="summary-item">
+            <span>Latest Period</span>
+            <span><strong>{{ summary.date_range.end }}</strong></span>
+        </div>
+        <div class="summary-item">
+            <span>Total Months</span>
+            <span><strong>{{ summary.total_months }}</strong></span>
+        </div>
+    </div>
+
+    <div class="summary-section">
+        <h3>Variance Category Breakdown</h3>
+        {% for category, count in summary.variance_counts.items() %}
+        <div class="summary-item">
+            <span>{{ category }}</span>
+            <span><strong>{{ "{:,}".format(count) }}</strong> ({{ "%.1f"|format((count / summary.total_records * 100)) }}%)</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="summary-section">
+        <h3>Company Breakdown</h3>
+        {% for company, count in summary.company_counts.items() %}
+        <div class="summary-item">
+            <span>{{ company }}</span>
+            <span><strong>{{ "{:,}".format(count) }}</strong> ({{ "%.1f"|format((count / summary.total_records * 100)) }}%)</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="summary-section">
+        <h3>Location Breakdown</h3>
+        {% for location, count in summary.location_counts.items() %}
+        <div class="summary-item">
+            <span>{{ location }}</span>
+            <span><strong>{{ "{:,}".format(count) }}</strong> ({{ "%.1f"|format((count / summary.total_records * 100)) }}%)</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="summary-section">
+        <h3>Variance Category by Company</h3>
+        {% for company, data in summary.variance_by_company.items() %}
+        <h4 class="summary-subheading">{{ company }} ({{ "{:,}".format(data.total) }} records)</h4>
+        {% for category, count in data.breakdown.items() %}
+        <div class="summary-item summary-item-nested">
+            <span>{{ category }}</span>
+            <span><strong>{{ "{:,}".format(count) }}</strong> ({{ "%.1f"|format((count / data.total * 100)) }}%)</span>
+        </div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+
+    <div class="summary-section">
+        <h3>Variance Category by Location</h3>
+        {% for location, data in summary.variance_by_location.items() %}
+        <h4 class="summary-subheading">{{ location }} ({{ "{:,}".format(data.total) }} records)</h4>
+        {% for category, count in data.breakdown.items() %}
+        <div class="summary-item summary-item-nested">
+            <span>{{ category }}</span>
+            <span><strong>{{ "{:,}".format(count) }}</strong> ({{ "%.1f"|format((count / data.total * 100)) }}%)</span>
+        </div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+
+    <div class="summary-section">
+        <h3>Variance Magnitudes</h3>
+        <div class="summary-item">
+            <span>Mean Absolute Variance</span>
+            <span><strong>{{ "%.2f"|format(summary.variance_stats.mean) }}</strong></span>
+        </div>
+        <div class="summary-item">
+            <span>Median Absolute Variance</span>
+            <span><strong>{{ "%.2f"|format(summary.variance_stats.median) }}</strong></span>
+        </div>
+        <div class="summary-item">
+            <span>Max Absolute Variance</span>
+            <span><strong>{{ "%.2f"|format(summary.variance_stats.max) }}</strong></span>
+        </div>
+        <div class="summary-item">
+            <span>Total Absolute Variance</span>
+            <span><strong>{{ "{:,.2f}".format(summary.variance_stats.total) }}</strong></span>
+        </div>
+    </div>
+
+    <div class="action-center">
+        <a href="{{ url_for('download_validation', validation_id=validation.id) }}" class="btn btn-large">
+            <span>Download Complete Results (CSV)</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script>
+        (function() {
+            const rawData = {{ chart_raw_data | safe }};
+            const chartColors = {{ chart_colors | safe }};
+            initChart(rawData, chartColors);
+        })();
+    </script>
+
+    {% endif %}
+</div>
+{% endblock %}
+

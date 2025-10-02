@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>Validation Failed:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="hero">
+        <h1>IPO Validation</h1>
+        <p>Compare PartUsage data against IPO forecasts to identify variances and data integrity issues.</p>
+        <form method="POST" action="{{ url_for('start_validation') }}">
+            <button type="submit" class="btn">
+                <span>Start Validation Check</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Current Configuration</h3>
+        <div class="config-grid">
+            <div class="config-item">
+                <span class="config-label">Date Range</span>
+                <span class="config-value">{{ config.validation.start_date }} to {{ config.validation.end_date }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Companies</span>
+                <span class="config-value">{{ config.validation.companies | join(', ') }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Database</span>
+                <span class="config-value">{{ config.database.server }}.{{ config.database.database }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Exclusions</span>
+                <span class="config-value">{{ 'Enabled' if config.options.apply_exclusions else 'Disabled' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-center">
+        <a href="{{ url_for('validations_dashboard') }}" class="btn btn-secondary">
+            <span>View Past Validations</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+    </div>
+</div>
+{% endblock %}
+

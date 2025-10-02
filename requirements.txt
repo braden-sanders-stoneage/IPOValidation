@@ -4,3 +4,5 @@ sqlalchemy
 pyodbc
 openpyxl
 pyarrow
+Flask==3.0.0
+Flask-Executor==1.0.0

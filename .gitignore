@@ -1,2 +1,4 @@
 .env
 dev/
+validations/
+__pycache__/
