@@ -5,7 +5,11 @@ import os
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
+from dotenv import load_dotenv
 from utils.main import run_validation_pipeline, load_config
+from utils.notifications import send_validation_notification
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'ipo-validation-secret-key-2025'
@@ -58,6 +62,12 @@ def run_validation_job(validation_id, config):
         validation_entry['critical_issues'] = len(results[results['variance_category'].isin(['Missing From IP&O', 'Missing From Usage'])])
         validation_entry['execution_time'] = (end_time - start_time).total_seconds()
         save_metadata(metadata)
+        
+        if config.get('options', {}).get('enable_notifications', False):
+            try:
+                send_validation_notification(validation_id)
+            except Exception as email_error:
+                print(f"[EMAIL] Failed to send notification: {email_error}")
         
     except Exception as e:
         validation_entry['status'] = 'failed'

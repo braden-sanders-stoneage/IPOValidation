@@ -43,7 +43,8 @@
   "options": {
     "apply_exclusions": true,
     "output_format": "csv",
-    "output_path": "validation_results.csv"
+    "output_path": "validation_results.csv",
+    "enable_notifications": true
   }
 }
 
