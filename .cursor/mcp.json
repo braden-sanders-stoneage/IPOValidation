@@ -1,0 +1,19 @@
+{
+    "mcpServers": {
+      "mssql": {
+        "command": "C:/Users/braden.sanders/nodejs/node-v22.18.0-win-x64/node.exe",
+        "args": ["C:/Users/braden.sanders/Python/AI/mcp_test/custom-mssql-mcp/dist/index.js"],
+        "env": {
+          "SERVER_NAME": "SAI-AZRDW02",
+          "DATABASE_NAME": "MULE_STAGE",
+          "READONLY": "true",
+          "CONNECTION_TIMEOUT": "30",
+          "TRUST_SERVER_CERTIFICATE": "true",
+          "ENCRYPT": "false",
+          "DOMAIN": "STONEAGETOOLS",
+          "USERNAME": "braden.sanders",
+          "PASSWORD": "@@@F22Raptor"
+        }
+      }
+    }
+  }

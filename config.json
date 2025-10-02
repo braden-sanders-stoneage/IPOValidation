@@ -1,0 +1,49 @@
+{
+  "database": {
+    "server": "SAI-AZRDW02",
+    "database": "MULE_STAGE",
+    "port": 1433,
+    "driver": "ODBC Driver 17 for SQL Server",
+    "use_windows_auth": true,
+    "username": "",
+    "password": ""
+  },
+  "validation": {
+    "start_date": "2025-08-01",
+    "end_date": "2025-08-31",
+    "companies": ["SAINC", "SAUK", "SANL"],
+    "excluded_companies": ["SAFR"]
+  },
+  "mappings": {
+    "locations": {
+      "SAINC": {
+        "SAILA": "StoneAge Louisiana",
+        "SAIOH": "StoneAge Ohio",
+        "SAICTN": "StoneAge Ohio",
+        "SAITX": "StoneAge Texas",
+        "MfgSys": "StoneAge, Inc."
+      },
+      "SANL": {
+        "MfgSys": "StoneAge Netherlands B.V."
+      },
+      "SAUK": {
+        "MfgSys": "StoneAge Europe Ltd"
+      },
+      "SAFR": {
+        "MfgSys": "StoneAge France"
+      }
+    }
+  },
+  "rules": {
+    "usage_calculation": {
+      "sainc_mfgsys_components": ["ICUsage", "IndirectUsage", "DirectUsage"],
+      "default_component": "DirectUsage"
+    }
+  },
+  "options": {
+    "apply_exclusions": true,
+    "output_format": "csv",
+    "output_path": "validation_results.csv"
+  }
+}
+
