@@ -8,3 +8,6 @@ Flask
 Flask-Executor
 requests
 python-dotenv
+APScheduler
+croniter
+pytz

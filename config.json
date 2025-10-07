@@ -45,6 +45,15 @@
     "output_format": "csv",
     "output_path": "validation_results.csv",
     "enable_notifications": true
+  },
+  "scheduler": {
+    "enabled": true,
+    "schedule_type": "monthly",
+    "monthly_day": 1,
+    "monthly_hour": 9,
+    "monthly_minute": 0,
+    "testing_cron": "*/5 * * * *",
+    "timezone": "America/Denver"
   }
 }
 

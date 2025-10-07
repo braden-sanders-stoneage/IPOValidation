@@ -99,6 +99,26 @@ footer {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
+.hero-simple {
+    text-align: center;
+    padding: 40px 20px 20px 20px;
+    margin-bottom: 30px;
+}
+
+.hero-simple h1 {
+    font-size: 42px;
+    color: var(--burnt-orange);
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.hero-subtitle {
+    font-size: 18px;
+    color: var(--text-light);
+    margin: 0;
+    font-weight: 400;
+}
+
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Roboto', sans-serif;
     font-weight: 500;
@@ -262,6 +282,135 @@ p {
     margin-bottom: 16px;
 }
 
+/* Countdown Timer Styles */
+.countdown-card {
+    text-align: center;
+    padding: 48px 32px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    border: 1px solid rgba(175, 93, 27, 0.1);
+}
+
+.countdown-display {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 30px;
+    margin-bottom: 24px;
+}
+
+.countdown-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.countdown-value {
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--burnt-orange);
+    font-family: 'Roboto', monospace;
+    line-height: 1;
+    min-width: 80px;
+    background: linear-gradient(135deg, rgba(175, 93, 27, 0.1) 0%, rgba(175, 93, 27, 0.05) 100%);
+    border-radius: 12px;
+    padding: 20px 10px;
+    border: 2px solid rgba(175, 93, 27, 0.2);
+}
+
+.countdown-label {
+    font-size: 12px;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+.countdown-separator {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--burnt-orange);
+    opacity: 0.5;
+    margin: 0 -4px;
+}
+
+.countdown-time {
+    font-size: 14px;
+    color: var(--text-light);
+    margin-top: 20px;
+}
+
+.countdown-time span {
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+.countdown-divider {
+    margin: 40px 0 32px 0;
+    position: relative;
+    text-align: center;
+}
+
+.countdown-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border-gray) 20%, var(--border-gray) 80%, transparent);
+    z-index: 0;
+}
+
+.countdown-divider span {
+    position: relative;
+    display: inline-block;
+    background: var(--white);
+    padding: 0 20px;
+    color: var(--text-light);
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 1;
+}
+
+.manual-validation-section {
+    padding: 0 20px;
+}
+
+.manual-validation-section h4 {
+    color: var(--text-dark);
+    font-size: 22px;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.manual-description {
+    color: var(--text-light);
+    font-size: 15px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.scheduler-disabled-text {
+    color: var(--text-light);
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto 30px auto;
+}
+
+.scheduler-disabled-text code {
+    background-color: var(--light-gray);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--burnt-orange);
+    font-family: 'Courier New', monospace;
+}
+
 .config-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -321,6 +470,40 @@ p {
 .validation-id {
     font-weight: 600;
     color: var(--burnt-orange);
+}
+
+.validation-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trigger-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.trigger-badge svg {
+    flex-shrink: 0;
+}
+
+.trigger-manual {
+    background-color: rgba(175, 93, 27, 0.1);
+    color: var(--burnt-orange);
+    border: 1px solid rgba(175, 93, 27, 0.3);
+}
+
+.trigger-scheduled {
+    background-color: rgba(83, 172, 219, 0.1);
+    color: var(--info-blue);
+    border: 1px solid rgba(83, 172, 219, 0.3);
 }
 
 .status-badge {
@@ -574,6 +757,7 @@ p {
 .action-center {
     text-align: center;
     margin-top: 40px;
+    padding-bottom: 20px;
 }
 
 .empty-state {
@@ -616,6 +800,14 @@ p {
         font-size: 32px;
     }
     
+    .hero-simple h1 {
+        font-size: 28px;
+    }
+    
+    .hero-subtitle {
+        font-size: 16px;
+    }
+    
     .stats-grid,
     .config-grid,
     .validation-grid {
@@ -628,6 +820,50 @@ p {
     
     .slicer-group {
         min-width: unset;
+    }
+    
+    /* Hide trigger badge text on mobile, show icon only */
+    .trigger-badge span {
+        display: none;
+    }
+    
+    .trigger-badge {
+        padding: 6px;
+    }
+    
+    /* Countdown responsive */
+    .countdown-card {
+        padding: 32px 20px;
+    }
+    
+    .countdown-display {
+        gap: 8px;
+    }
+    
+    .countdown-value {
+        font-size: 36px;
+        min-width: 60px;
+        padding: 12px 8px;
+    }
+    
+    .countdown-label {
+        font-size: 10px;
+    }
+    
+    .countdown-separator {
+        font-size: 32px;
+    }
+    
+    .manual-validation-section h4 {
+        font-size: 18px;
+    }
+    
+    .manual-description {
+        font-size: 14px;
+    }
+    
+    .scheduler-disabled-text {
+        font-size: 14px;
     }
 }
 

@@ -75,6 +75,59 @@ This application validates that actual material usage data from Epicor ERP match
    http://localhost:5000
    ```
 
+### Scheduled Validations (Optional)
+
+**Purpose:** Automatically run validations on a recurring schedule
+
+**The scheduler is integrated into the Flask app and starts automatically when enabled.**
+
+#### Configuration Options
+
+The scheduler supports two modes:
+
+**1. Monthly Schedule (Production)**
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "schedule_type": "monthly",
+    "monthly_day": 1,
+    "monthly_hour": 8,
+    "monthly_minute": 0,
+    "timezone": "America/Denver"
+  }
+}
+```
+- Runs on the 1st of each month at 8:00 AM
+- Perfect for monthly reporting cycles
+- Simple and predictable
+
+**2. Testing Schedule (Development)**
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "schedule_type": "testing",
+    "testing_cron": "*/5 * * * *",
+    "timezone": "America/Denver"
+  }
+}
+```
+- Uses custom cron expression for flexible testing
+- Examples:
+  - `"*/5 * * * *"` - Every 5 minutes
+  - `"0 */2 * * *"` - Every 2 hours
+  - `"0 9 * * 1-5"` - Weekdays at 9 AM
+
+#### Starting the Scheduler
+
+Simply start Flask - scheduler runs automatically in background:
+```powershell
+python app.py
+```
+
+The scheduler will display its configuration on startup and run validations according to the schedule.
+
 ---
 
 ## 📊 Data Sources
@@ -384,7 +437,17 @@ absolute_variance = |variance|
   "options": {
     "apply_exclusions": true,
     "output_format": "csv",
-    "output_path": "validation_results.csv"
+    "output_path": "validation_results.csv",
+    "enable_notifications": true
+  },
+  "scheduler": {
+    "enabled": false,
+    "schedule_type": "monthly",
+    "monthly_day": 1,
+    "monthly_hour": 8,
+    "monthly_minute": 0,
+    "testing_cron": "*/5 * * * *",
+    "timezone": "America/Denver"
   }
 }
 ```
@@ -408,6 +471,23 @@ absolute_variance = |variance|
 - Add new locations as needed
 - Format: `"COMPANY": { "PLANT": "Location Name" }`
 
+**Scheduler** (Optional):
+- `enabled`: Set to `true` to enable automated scheduled validations
+- `schedule_type`: Choose scheduling mode:
+  - `"monthly"` - Run on specific day of month (production)
+  - `"testing"` - Use custom cron expression (development)
+- **Monthly Mode** (when `schedule_type: "monthly"`):
+  - `monthly_day`: Day of month (1-31, default: 1)
+  - `monthly_hour`: Hour of day (0-23, default: 8)
+  - `monthly_minute`: Minute of hour (0-59, default: 0)
+- **Testing Mode** (when `schedule_type: "testing"`):
+  - `testing_cron`: Custom cron expression
+    - `"*/5 * * * *"` - Every 5 minutes
+    - `"0 */2 * * *"` - Every 2 hours
+    - `"0 9 * * 1-5"` - Weekdays at 9 AM
+- `timezone`: Timezone for scheduling (e.g., `"America/Denver"`, `"UTC"`)
+- Scheduler runs automatically when Flask app starts (integrated)
+
 ---
 
 ## 📁 Project Structure
@@ -415,6 +495,7 @@ absolute_variance = |variance|
 ```
 IPO_Validation_2/
 ├── app.py                      # Flask application and routes
+├── scheduler.py                # Scheduled validation runner (optional)
 ├── config.json                 # Configuration file
 ├── requirements.txt            # Python dependencies
 │
@@ -459,7 +540,7 @@ IPO_Validation_2/
 # Install dependencies
 pip install -r requirements.txt
 
-# Run development server
+# Run development server (scheduler starts automatically if enabled)
 python app.py
 
 # Access at http://localhost:5000
@@ -486,6 +567,46 @@ FLASK_SECRET_KEY=<secure-random-key>
 - Ensure production server has SQL Server access
 - Verify Windows Authentication or configure SQL Auth
 - Test connection before deployment
+
+**Scheduler (Optional)**:
+
+The scheduler is **integrated into Flask** and starts automatically when enabled.
+
+**For Production (Monthly Reports):**
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "schedule_type": "monthly",
+    "monthly_day": 1,
+    "monthly_hour": 8,
+    "monthly_minute": 0,
+    "timezone": "America/Denver"
+  }
+}
+```
+- Runs on the 1st of each month at 8:00 AM
+- Sends email notification automatically
+
+**For Testing/Development:**
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "schedule_type": "testing",
+    "testing_cron": "*/10 * * * *",
+    "timezone": "America/Denver"
+  }
+}
+```
+- Runs every 10 minutes for testing
+- Easy to verify functionality
+
+**How It Works:**
+- Scheduler starts with Flask in a background thread
+- No separate process needed
+- Scheduled validations run alongside manual web UI validations
+- All validations appear in the same dashboard
 
 ---
 
