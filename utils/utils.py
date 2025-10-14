@@ -209,6 +209,7 @@ def apply_exclusions(df: pd.DataFrame, metadata_df: pd.DataFrame) -> pd.DataFram
     - Runout parts
     - NonStock parts
     - RAW/CSM classification
+    - IPO Method (Number02) values 1, 2, 3 (parts not planned in IP&O)
     
     Args:
         df: Normalized usage DataFrame
@@ -225,7 +226,8 @@ def apply_exclusions(df: pd.DataFrame, metadata_df: pd.DataFrame) -> pd.DataFram
         (metadata_df['InActive'] == True) |
         (metadata_df['Runout'] == True) |
         (metadata_df['NonStock'] == True) |
-        (metadata_df['ClassID'].isin(['RAW', 'CSM']))
+        (metadata_df['ClassID'].isin(['RAW', 'CSM'])) |
+        (metadata_df['Number02'].isin([1, 2, 3, '1', '2', '3']))
     ]
     
     # Create exclusion keys

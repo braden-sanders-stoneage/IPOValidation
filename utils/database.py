@@ -158,11 +158,14 @@ def query_part_metadata(engine, companies: list) -> pd.DataFrame:
             p.InActive,
             p.Runout,
             pp.NonStock,
-            p.ProdCode
+            p.ProdCode,
+            u.Number02
         FROM sai_dw.Erp.Part p
         JOIN sai_dw.Erp.PartPlant pp 
             ON p.Company = pp.Company 
             AND p.PartNum = pp.PartNum
+        JOIN sai_dw.Erp.PartPlant_UD u
+            ON pp.SysRowID = u.ForeignSysRowID
         WHERE p.Company IN ('{companies_str}')
     """)
     
