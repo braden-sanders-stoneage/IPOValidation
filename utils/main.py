@@ -106,12 +106,11 @@ def run_validation_pipeline(config: dict) -> pd.DataFrame:
             config['validation']['end_date']
         )
         
-        # Optional: Query metadata for exclusions
-        if config['options']['apply_exclusions']:
-            part_metadata = query_part_metadata(
-                engine,
-                config['validation']['companies']
-            )
+        # Query metadata (needed for both exclusions and export enrichment)
+        part_metadata = query_part_metadata(
+            engine,
+            config['validation']['companies']
+        )
         
         # ---------------------------------------------------------------------
         # STEP 3: Normalize PartUsage
@@ -130,23 +129,33 @@ def run_validation_pipeline(config: dict) -> pd.DataFrame:
         ipo_validation_normalized = normalize_ipo_validation(ipo_validation_raw)
         
         # ---------------------------------------------------------------------
-        # STEP 5: Apply Exclusions (Optional)
+        # STEP 5: Enrich with Metadata & Apply Exclusions (Optional)
         # ---------------------------------------------------------------------
+        print("\n[STEP 5/7] ENRICH WITH METADATA & APPLY EXCLUSIONS")
+        print("-" * 80)
+        
+        # Always enrich with metadata fields for export
+        from utils.utils import enrich_with_metadata, apply_frequency_filter
+        part_usage_normalized = enrich_with_metadata(
+            part_usage_normalized,
+            part_metadata
+        )
+        
+        # Apply exclusions if enabled
         if config['options']['apply_exclusions']:
-            print("\n[STEP 5/7] APPLY EXCLUSIONS")
-            print("-" * 80)
-            
             part_usage_normalized = apply_exclusions(
                 part_usage_normalized,
                 part_metadata
             )
+            
+            # Apply frequency filter after exclusions
+            part_usage_normalized = apply_frequency_filter(
+                part_usage_normalized,
+                part_usage_raw,
+                config['validation']['end_date']
+            )
         else:
-            print("\n[STEP 5/7] APPLY EXCLUSIONS - SKIPPED")
-            print("-" * 80)
             print("[EXCLUSIONS] Exclusions disabled in config")
-            # Drop plant column since it's not needed in output
-            if 'plant' in part_usage_normalized.columns:
-                part_usage_normalized = part_usage_normalized.drop(columns=['plant'])
         
         # ---------------------------------------------------------------------
         # STEP 6: Compare Datasets

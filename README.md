@@ -45,7 +45,7 @@ This application validates that actual material usage data from Epicor ERP match
 - Python 3.8 or higher
 - Access to StoneAge SQL Server database (SAI-AZRDW02)
 - ODBC Driver 17 for SQL Server
-- Windows Authentication credentials
+- SQL Server authentication credentials (stored in .env file)
 
 ### Installation
 
@@ -54,23 +54,30 @@ This application validates that actual material usage data from Epicor ERP match
    pip install -r requirements.txt
    ```
 
-2. **Verify database configuration** (config.json)
+2. **Create .env file** in the project root with database credentials:
+   ```
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_password
+   ```
+
+3. **Verify database configuration** (config.json)
    ```json
    {
      "database": {
        "server": "SAI-AZRDW02",
        "database": "MULE_STAGE",
-       "use_windows_auth": true
+       "port": 1433,
+       "driver": "ODBC Driver 17 for SQL Server"
      }
    }
    ```
 
-3. **Run the application**
+4. **Run the application**
    ```powershell
    python app.py
    ```
 
-4. **Open browser**
+5. **Open browser**
    ```
    http://localhost:5000
    ```
@@ -400,10 +407,7 @@ absolute_variance = |variance|
     "server": "SAI-AZRDW02",
     "database": "MULE_STAGE",
     "port": 1433,
-    "driver": "ODBC Driver 17 for SQL Server",
-    "use_windows_auth": true,
-    "username": "",
-    "password": ""
+    "driver": "ODBC Driver 17 for SQL Server"
   },
   "validation": {
     "start_date": "2025-05-01",
@@ -565,7 +569,7 @@ FLASK_SECRET_KEY=<secure-random-key>
 
 **Database Access**:
 - Ensure production server has SQL Server access
-- Verify Windows Authentication or configure SQL Auth
+- Create .env file with SQL authentication credentials
 - Test connection before deployment
 
 **Scheduler (Optional)**:
@@ -622,9 +626,10 @@ The scheduler is **integrated into Flask** and starts automatically when enabled
 
 **Error: "Login failed for user"**
 
-**Solution**: Check authentication settings
-- Windows Auth: Ensure `use_windows_auth: true`
-- SQL Auth: Set `use_windows_auth: false` and provide credentials
+**Solution**: Check authentication credentials in .env file
+- Verify `DB_USERNAME` is correct
+- Verify `DB_PASSWORD` is correct
+- Ensure the SQL user has appropriate permissions on MULE_STAGE database
 
 **Error: "Invalid object name 'PartUsage' or 'IPOValidation'"**
 

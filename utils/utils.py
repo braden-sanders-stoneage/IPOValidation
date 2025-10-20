@@ -197,7 +197,51 @@ def calculate_usage(row, rules: dict) -> float:
 
 
 # ============================================================================
-# SECTION 3: FILTERING / EXCLUSIONS
+# SECTION 3: METADATA ENRICHMENT
+# ============================================================================
+
+def enrich_with_metadata(df: pd.DataFrame, metadata_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Enrich normalized usage data with metadata fields for export
+    
+    Adds the following fields from Part/PartPlant metadata:
+    - NonStock (from PartPlant)
+    - Number02 (IPO Method from PartPlant_UD)
+    - InActive (from Part)
+    - Runout (from Part)
+    
+    Args:
+        df: Normalized usage DataFrame with columns: company, location, plant, part_num, period, actual_usage
+        metadata_df: Part metadata from database
+        
+    Returns:
+        DataFrame with added metadata columns
+    """
+    print("[ENRICHMENT] Adding metadata fields to normalized data...")
+    
+    # Create lookup key in both dataframes
+    df['_lookup_key'] = list(zip(df['company'], df['plant'], df['part_num']))
+    metadata_df['_lookup_key'] = list(zip(metadata_df['Company'], metadata_df['Plant'], metadata_df['PartNum']))
+    
+    # Create metadata lookup dictionary
+    metadata_lookup = metadata_df.set_index('_lookup_key')[['NonStock', 'Number02', 'InActive', 'Runout']].to_dict('index')
+    
+    # Add metadata fields
+    df['nonstock'] = df['_lookup_key'].map(lambda k: metadata_lookup.get(k, {}).get('NonStock', None))
+    df['ipo_method'] = df['_lookup_key'].map(lambda k: metadata_lookup.get(k, {}).get('Number02', None))
+    df['inactive'] = df['_lookup_key'].map(lambda k: metadata_lookup.get(k, {}).get('InActive', None))
+    df['runout'] = df['_lookup_key'].map(lambda k: metadata_lookup.get(k, {}).get('Runout', None))
+    
+    # Drop temporary lookup key
+    df = df.drop(columns=['_lookup_key'])
+    
+    print(f"[ENRICHMENT] ✓ Added metadata fields: nonstock, ipo_method, inactive, runout")
+    
+    return df
+
+
+# ============================================================================
+# SECTION 4: FILTERING / EXCLUSIONS
 # ============================================================================
 
 def apply_exclusions(df: pd.DataFrame, metadata_df: pd.DataFrame) -> pd.DataFrame:
@@ -238,7 +282,7 @@ def apply_exclusions(df: pd.DataFrame, metadata_df: pd.DataFrame) -> pd.DataFram
     # Filter out excluded parts
     df['_exclude_key'] = list(zip(df['company'], df['plant'], df['part_num']))
     df = df[~df['_exclude_key'].isin(exclusion_keys)]
-    df = df.drop(columns=['_exclude_key', 'plant'])  # Drop temporary columns
+    df = df.drop(columns=['_exclude_key'])  # Drop temporary column (keep plant for now)
     
     excluded_count = initial_count - len(df)
     print(f"[EXCLUSIONS] ✓ Excluded {excluded_count:,} rows ({excluded_count/initial_count*100:.1f}%)")
@@ -247,8 +291,88 @@ def apply_exclusions(df: pd.DataFrame, metadata_df: pd.DataFrame) -> pd.DataFram
     return df
 
 
+def apply_frequency_filter(df: pd.DataFrame, raw_usage_df: pd.DataFrame, end_date: str) -> pd.DataFrame:
+    """
+    Apply frequency filter to exclude low-frequency parts (except StoneAge, Inc.)
+    
+    Excludes parts with ≤2 transactions in rolling 12-month window, but ONLY for 
+    locations other than "StoneAge, Inc." (SAINC MfgSys location is always included).
+    
+    Transaction count = ICTranCount + IndirectTranCount + DirectTranCount + RentTranCount
+    
+    Args:
+        df: Normalized usage DataFrame with metadata
+        raw_usage_df: Raw PartUsage data with transaction counts
+        end_date: Validation end date (e.g., '2025-08-31')
+        
+    Returns:
+        Filtered DataFrame
+    """
+    print("[FREQUENCY FILTER] Applying frequency filter (12-month rolling window)...")
+    initial_count = len(df)
+    
+    # Calculate 12-month window
+    end_date_dt = pd.to_datetime(end_date)
+    start_date_dt = end_date_dt - pd.DateOffset(months=12)
+    
+    print(f"[FREQUENCY FILTER] Rolling window: {start_date_dt.date()} to {end_date_dt.date()}")
+    
+    # Parse composite key and calculate total transaction count
+    raw_usage_df['endOfMonth_dt'] = pd.to_datetime(raw_usage_df['endOfMonth'])
+    
+    # Filter to 12-month window
+    window_data = raw_usage_df[
+        (raw_usage_df['endOfMonth_dt'] >= start_date_dt) & 
+        (raw_usage_df['endOfMonth_dt'] <= end_date_dt)
+    ].copy()
+    
+    # Parse composite key
+    split_data = window_data['company_plant_part'].str.split('_', n=2, expand=True)
+    window_data['Company'] = split_data[0]
+    window_data['Plant'] = split_data[1]
+    window_data['PartNum'] = split_data[2]
+    
+    # Calculate total transactions per part
+    window_data['total_transactions'] = (
+        window_data['ICTranCount'].fillna(0) + 
+        window_data['IndirectTranCount'].fillna(0) + 
+        window_data['DirectTranCount'].fillna(0) + 
+        window_data['RentTranCount'].fillna(0)
+    )
+    
+    # Aggregate by company/plant/part
+    transaction_counts = window_data.groupby(['Company', 'Plant', 'PartNum'])['total_transactions'].sum().reset_index()
+    transaction_counts.columns = ['company', 'plant', 'part_num', 'transaction_count_12mo']
+    
+    # Merge transaction counts into main dataframe
+    df = df.merge(
+        transaction_counts,
+        on=['company', 'plant', 'part_num'],
+        how='left'
+    )
+    
+    # Fill NaN with 0 (parts with no transactions in window)
+    df['transaction_count_12mo'] = df['transaction_count_12mo'].fillna(0)
+    
+    # Apply filter: exclude parts with ≤2 transactions EXCEPT for StoneAge, Inc.
+    before_filter = len(df)
+    df = df[
+        (df['location'] == 'StoneAge, Inc.') |  # Always include StoneAge, Inc.
+        (df['transaction_count_12mo'] > 2)       # For other locations, must have >2 transactions
+    ]
+    
+    filtered_count = before_filter - len(df)
+    exempt_count = len(df[df['location'] == 'StoneAge, Inc.'])
+    
+    print(f"[FREQUENCY FILTER] ✓ Excluded {filtered_count:,} rows with ≤2 transactions (12-month window)")
+    print(f"[FREQUENCY FILTER] ✓ Exempted {exempt_count:,} StoneAge, Inc. records from frequency filter")
+    print(f"[FREQUENCY FILTER] ✓ Remaining: {len(df):,} rows")
+    
+    return df
+
+
 # ============================================================================
-# SECTION 4: COMPARISON
+# SECTION 5: COMPARISON
 # ============================================================================
 
 def compare_datasets(part_usage_df: pd.DataFrame, ipo_df: pd.DataFrame) -> pd.DataFrame:
@@ -257,17 +381,22 @@ def compare_datasets(part_usage_df: pd.DataFrame, ipo_df: pd.DataFrame) -> pd.Da
     
     Performs FULL OUTER JOIN on (company, location, part_num, period)
     Calculates variance metrics
+    Preserves metadata fields (nonstock, ipo_method, inactive, runout, transaction_count_12mo) in output
     
     Args:
-        part_usage_df: Normalized PartUsage DataFrame
+        part_usage_df: Normalized PartUsage DataFrame with metadata fields
         ipo_df: Normalized IPOValidation DataFrame
         
     Returns:
-        Comparison DataFrame with variance metrics
+        Comparison DataFrame with variance metrics and metadata
     """
     print("[COMPARISON] Comparing PartUsage vs IPOValidation...")
     print(f"[COMPARISON] PartUsage records: {len(part_usage_df):,}")
     print(f"[COMPARISON] IPOValidation records: {len(ipo_df):,}")
+    
+    # Drop plant column before merge (not in IPO data)
+    if 'plant' in part_usage_df.columns:
+        part_usage_df = part_usage_df.drop(columns=['plant'])
     
     # Perform FULL OUTER JOIN
     merge_keys = ['company', 'location', 'part_num', 'period']
@@ -349,7 +478,7 @@ def calculate_variance_percent(actual: float, ipo: float) -> float:
 
 
 # ============================================================================
-# SECTION 5: CATEGORIZATION
+# SECTION 6: CATEGORIZATION
 # ============================================================================
 
 def categorize_variance(row) -> str:

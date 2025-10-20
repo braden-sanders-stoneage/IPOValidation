@@ -2,10 +2,14 @@
 Database connection and query utilities for IPO Validation
 """
 
+import os
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # ============================================================================
@@ -29,23 +33,19 @@ class DatabaseConnection:
         """Create and return SQLAlchemy engine"""
         print(f"[DATABASE] Connecting to {self.config['server']}.{self.config['database']}...")
         
-        if self.config.get('use_windows_auth', False):
-            # Windows Authentication
-            connection_string = (
-                f"DRIVER={{{self.config['driver']}}};"
-                f"SERVER={self.config['server']};"
-                f"DATABASE={self.config['database']};"
-                f"Trusted_Connection=yes;"
-            )
-        else:
-            # SQL Authentication
-            connection_string = (
-                f"DRIVER={{{self.config['driver']}}};"
-                f"SERVER={self.config['server']};"
-                f"DATABASE={self.config['database']};"
-                f"UID={self.config['username']};"
-                f"PWD={self.config['password']};"
-            )
+        username = os.getenv('DB_USERNAME')
+        password = os.getenv('DB_PASSWORD')
+        
+        if not username or not password:
+            raise ValueError("DB_USERNAME and DB_PASSWORD must be set in .env file")
+        
+        connection_string = (
+            f"DRIVER={{{self.config['driver']}}};"
+            f"SERVER={self.config['server']};"
+            f"DATABASE={self.config['database']};"
+            f"UID={username};"
+            f"PWD={password};"
+        )
         
         connection_url = f"mssql+pyodbc:///?odbc_connect={quote_plus(connection_string)}"
         self.engine = create_engine(connection_url)

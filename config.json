@@ -3,14 +3,11 @@
     "server": "SAI-AZRDW02",
     "database": "MULE_STAGE",
     "port": 1433,
-    "driver": "ODBC Driver 17 for SQL Server",
-    "use_windows_auth": true,
-    "username": "",
-    "password": ""
+    "driver": "ODBC Driver 17 for SQL Server"
   },
   "validation": {
     "start_date": "2025-05-01",
-    "end_date": "2025-08-31",
+    "end_date": "2025-09-30",
     "companies": ["SAINC", "SAUK", "SANL"],
     "excluded_companies": ["SAFR"]
   },
