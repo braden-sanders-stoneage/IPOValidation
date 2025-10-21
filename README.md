@@ -550,7 +550,63 @@ python app.py
 # Access at http://localhost:5000
 ```
 
-### Production Deployment
+### Azure App Service Deployment
+
+This application is configured for deployment to Azure App Service (Linux, Python 3.12).
+
+#### Prerequisites
+- Azure App Service created (Basic tier or higher recommended for "Always On")
+- GitHub repository connected via Azure Deployment Center
+- SQL Server accessible from Azure (may require VNet integration for on-premises databases)
+
+#### Deployment Files
+- `startup.sh`: Gunicorn startup command (1 worker for scheduler compatibility)
+- `.deployment`: Azure build configuration
+- `requirements.txt`: Includes gunicorn for production WSGI server
+
+#### Azure Configuration Steps
+
+1. **Set Environment Variables** (Azure Portal → Configuration → Application Settings):
+   ```
+   DB_SERVER=SAI-AZRDW02
+   DB_NAME=MULE_STAGE
+   DB_PORT=1433
+   DB_DRIVER=ODBC Driver 17 for SQL Server
+   DB_USERNAME=mulesoft.automation
+   DB_PASSWORD=your_password
+   OUTLOOK_CLIENT_ID=your_outlook_client_id
+   OUTLOOK_CLIENT_SECRET=your_outlook_secret
+   OUTLOOK_TENANT_ID=your_tenant_id
+   OUTLOOK_MAILBOX_ID=dxp@stoneagetools.com
+   OUTLOOK_RECIPIENT_EMAIL=your_email@stoneagetools.com
+   ```
+
+2. **Set Startup Command** (Configuration → General Settings):
+   ```
+   /home/site/wwwroot/startup.sh
+   ```
+
+3. **Enable Always On** (Configuration → General Settings):
+   - Toggle "Always On" to prevent cold starts
+   - Requires Basic tier or higher
+
+4. **Deploy**:
+   - Push code to GitHub main branch
+   - Azure automatically deploys via GitHub Actions
+   - Monitor in Deployment Center
+
+5. **Verify**:
+   - Check Log Stream for startup messages
+   - Visit your app URL
+   - Run a test validation
+
+#### Important Notes
+- **Workers**: Configured for 1 worker to prevent duplicate scheduler jobs
+- **Database Access**: Ensure Azure can reach SAI-AZRDW02 (may need VNet/VPN)
+- **Timeouts**: Gunicorn timeout set to 600 seconds for long validations
+- **Local Development**: Still works with `python app.py` (Gunicorn only used in Azure)
+
+### Production Deployment (Non-Azure)
 
 **Configuration Changes**:
 1. Set `app.secret_key` to a secure random value
